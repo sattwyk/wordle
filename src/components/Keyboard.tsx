@@ -37,7 +37,8 @@ export default function Keyboard({ keys }: Prop): JSX.Element {
 
     return (
       <li
-        className={`text-slate-100 text-md flex items-center justify-center h-7 py-7 rounded ${bg} ${
+        onClick={() => {}}
+        className={`text-slate-100 text-md flex items-center justify-center h-7 py-7 rounded cursor-pointer ${bg} ${
           key === 'enter' && 'col-span-2'
         }`}
         key={`KEYBOARD ${key}`}

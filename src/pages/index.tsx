@@ -2,12 +2,13 @@ import type { NextPage } from 'next';
 import { useEffect, useState } from 'react';
 import Board from '../components/Board';
 import Key from '../components/Key';
+import Modal from '../components/Modal';
 import Keyboard from '../components/Keyboard';
 import { data } from '../../data';
 import Head from 'next/head';
 
 interface Props {
-  actualWord: String;
+  actualWord: string;
   WORDS: { [key: string]: true };
 }
 
@@ -47,6 +48,7 @@ const keyboardKeyState = {
 };
 
 const Home: NextPage<Props> = ({ actualWord, WORDS }) => {
+  const [currentActualWord, setCurrentActualWord] = useState(actualWord);
   const [words, setWords] = useState(Array(30).fill(0));
   const [currentLetter, setCurrentLetter] = useState(0);
   const [currentWord, setCurrentWord] = useState(1);
@@ -54,8 +56,30 @@ const Home: NextPage<Props> = ({ actualWord, WORDS }) => {
   const [keyboard, setKeyboard] = useState<{ [key: string]: string }>(
     keyboardKeyState
   );
+  const [modal, setModal] = useState<{ open: boolean; state: 'win' | 'loose' }>(
+    { open: false, state: 'win' }
+  );
 
   const keys = words.map((letter, i) => <Key key={i} letter={letter} />);
+
+  const reset = () => {
+    const KEYWORDS = Object.keys(WORDS);
+    let newWord = KEYWORDS[Math.floor(Math.random() * KEYWORDS.length)];
+    setWords(Array(30).fill(0));
+    setCurrentLetter(0);
+    setCurrentWord(1);
+    setUsedWords({});
+    setKeyboard(keyboardKeyState);
+    while (newWord === currentActualWord) {
+      newWord = KEYWORDS[Math.floor(Math.random() * KEYWORDS.length)];
+    }
+    setCurrentActualWord(newWord);
+  };
+
+  const onClose = () => {
+    setModal((pre) => ({ ...pre, open: false }));
+    reset();
+  };
 
   useEffect(() => {
     const RANGE: RangeType = {
@@ -78,6 +102,15 @@ const Home: NextPage<Props> = ({ actualWord, WORDS }) => {
       return cw.toLowerCase();
     };
 
+    const checkWin = () => {
+      if (getCurrentWord() === currentActualWord) {
+        setModal({ open: true, state: 'win' });
+        return true;
+      }
+
+      return false;
+    };
+
     const checkWord = (word: String) => {
       const newWords = [...words];
       const [lower, upper] = RANGE[currentWord];
@@ -85,10 +118,10 @@ const Home: NextPage<Props> = ({ actualWord, WORDS }) => {
       const arr = [];
       for (let i = 0; i <= 4; i++) {
         const k = word[i].toLowerCase();
-        if (word[i] === actualWord[i]) {
+        if (word[i] === currentActualWord[i]) {
           arr.push(':E');
           setKeyboard((keys) => ({ ...keys, [k]: 'E' }));
-        } else if (actualWord.includes(word[i])) {
+        } else if (currentActualWord.includes(word[i])) {
           arr.push(':Y');
           if (keyboard[k] !== 'E') {
             setKeyboard((keys) => ({ ...keys, [k]: 'Y' }));
@@ -109,9 +142,31 @@ const Home: NextPage<Props> = ({ actualWord, WORDS }) => {
 
       setWords(() => newWords);
     };
+    const revertBack = () => {
+      const newWords = [...words];
+      const [lower, upper] = RANGE[currentWord];
+
+      for (let i = lower; i <= upper; i++) {
+        newWords[i] = newWords[i].split(':')[0];
+      }
+
+      setWords(() => newWords);
+    };
+
+    const handleError = () => {
+      const newWords = [...words];
+      const [lower, upper] = RANGE[currentWord];
+
+      for (let i = lower; i <= upper; i++) {
+        newWords[i] += ':R';
+      }
+
+      setWords(() => newWords);
+      setTimeout(revertBack, 100);
+    };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (currentLetter >= 0 && currentLetter <= 30) {
+      if (currentLetter >= 0 && currentLetter <= 30 && !modal.open) {
         const code = e.key.toLowerCase().charCodeAt(0);
         const newWords = [...words];
         if (
@@ -140,11 +195,15 @@ const Home: NextPage<Props> = ({ actualWord, WORDS }) => {
         } else if (e.key.toLowerCase() === 'enter') {
           const [, upper] = RANGE[currentWord];
           const cw = getCurrentWord();
-          if (currentLetter === upper + 1 && WORDS[cw] && !usedWords[cw]) {
+          const gotAWord = currentLetter === upper + 1;
+          if (gotAWord && WORDS[cw] && !usedWords[cw]) {
             checkWord(cw);
             setCurrentWord((word) => word + 1);
             setUsedWords((words) => ({ ...words, [cw]: true }));
-          }
+            if (!checkWin() && currentWord === 6) {
+              setModal({ open: true, state: 'loose' });
+            }
+          } else if (gotAWord) handleError();
         }
       }
     };
@@ -157,22 +216,29 @@ const Home: NextPage<Props> = ({ actualWord, WORDS }) => {
     currentLetter,
     currentWord,
     WORDS,
-    actualWord,
+    currentActualWord,
     usedWords,
     keyboard,
+    modal.open,
   ]);
 
   return (
     <div className='bg-[#121213] h-screen'>
       <header className='border  border-x-0 border-solid	border-zinc-800 p-3'>
         <h1 className='text-4xl text-center font-bold text-slate-100'>
-          Wordle : <span className='text-red-400'>{actualWord}</span>
+          Wordle
         </h1>
       </header>
       <main>
         <Board>{keys}</Board>
         <Keyboard keys={keyboard} />
       </main>
+      <Modal
+        open={modal.open}
+        state={modal.state}
+        onClose={onClose}
+        actualWord={currentActualWord}
+      />
     </div>
   );
 };
