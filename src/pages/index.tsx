@@ -4,7 +4,7 @@ import Board from '../components/Board';
 import Key from '../components/Key';
 import Modal from '../components/Modal';
 import Keyboard from '../components/Keyboard';
-import { data } from '../../data';
+import data from '../../data.json';
 import Head from 'next/head';
 
 interface Props {
